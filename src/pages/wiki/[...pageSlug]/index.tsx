@@ -1,5 +1,10 @@
+import Link from "next/link";
 import { fetchData } from "lib/server";
 import styled from "styled-components";
+import { Icon } from "components/icon";
+import { faArrowLeft, faArrowRight } from "@fortawesome/pro-solid-svg-icons";
+import { Column } from "components/box";
+import { Text } from "components/text";
 import theme from "theme";
 import { SEO } from "components/seo";
 import fetchStaticPaths from "utils/fetchStaticPaths";
@@ -34,6 +39,17 @@ const StyledGrid = styled.div`
     }
 `;
 
+const ArrowButtonBox = styled.div`
+    display: flex;
+    justify-content: space-between;
+`;
+
+const ArrowLink = styled(Link)`
+    display: flex;
+    gap: 10px;
+    align-items: center;
+`;
+
 export interface DocumentPageProps extends SharedPageProps {
     page: Omit<RequiredNonNullable<DocumentPageQuery>["page"], "body"> & {
         source: MDXRemoteSerializeResult;
@@ -49,7 +65,20 @@ export default function DocumentPage({ page }: DocumentPageProps) {
     return (
         <StyledGrid>
             <SEO title={page.name}/>
-            <Markdown source={page.source} />
+            <Column style={{ "--gap": "32px" }}>
+                <Markdown source={page.source} />
+                <ArrowButtonBox>
+                    <ArrowLink href="/wiki">
+                        <Icon icon={faArrowLeft} color="text-disabled"></Icon>
+                        <Text link color="text-disabled">Previous page</Text>
+                    </ArrowLink>
+                    <Text>Middle text</Text>
+                    <ArrowLink href="/wiki">
+                        <Text link color="text-disabled">Next page</Text>
+                        <Icon icon={faArrowRight} color="text-disabled"></Icon>
+                    </ArrowLink>
+                </ArrowButtonBox>
+            </Column>
             <TableOfContents headings={page.headings} />
         </StyledGrid>
     );
@@ -95,7 +124,6 @@ export const getStaticPaths: GetStaticPaths<DocumentPageParams> = () => {
                 }
             }
         `);
-
         return data.pageAll.map((page) => ({
             params: {
                 pageSlug: page.slug.split("/")

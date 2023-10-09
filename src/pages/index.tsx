@@ -93,7 +93,6 @@ interface HomePageProps {
 
 export default function HomePage({ featuredTheme, announcementSources }: HomePageProps) {
     const { currentYear, currentSeason } = useCurrentSeason();
-
     const { data, loading } = useQuery<RecentlyAddedQuery>(gql`
         ${ThemeSummaryCard.fragments.theme}
 
@@ -104,7 +103,6 @@ export default function HomePage({ featuredTheme, announcementSources }: HomePag
         }
     `, { ssr: false });
     const recentlyAdded = loading ? range(10).map(() => null) : data?.recentlyAdded;
-
     return <>
         <SEO/>
         <Text variant="h1">Welcome, to AnimeThemes.moe!</Text>
@@ -262,7 +260,6 @@ export const getStaticProps: GetStaticProps<HomePageProps> = async () => {
             }
         }
     `);
-
     return {
         props: {
             ...getSharedPageProps(apiRequests),
