@@ -2,8 +2,7 @@ import Link from "next/link";
 import { fetchData } from "lib/server";
 import styled from "styled-components";
 import { Icon } from "components/icon";
-import { faArrowLeft, faArrowRight } from "@fortawesome/pro-solid-svg-icons";
-import { Column } from "components/box";
+import { faArrowLeft } from "@fortawesome/pro-solid-svg-icons";
 import { Text } from "components/text";
 import theme from "theme";
 import { SEO } from "components/seo";
@@ -23,6 +22,7 @@ import { TableOfContents } from "components/markdown/TableOfContents";
 
 const StyledGrid = styled.div`
     display: flex;
+    flex-wrap: wrap;
     gap: 32px;
     
     & > :nth-child(1) {
@@ -37,17 +37,16 @@ const StyledGrid = styled.div`
             display: none;
         }
     }
+
+    & > :nth-child(3) {
+        flex-basis: 100%;
+    }
 `;
 
 const ArrowButtonBox = styled.div`
-    display: flex;
-    justify-content: space-between;
-`;
-
-const ArrowLink = styled(Link)`
-    display: flex;
-    gap: 10px;
-    align-items: center;
+    svg {
+        margin-right: 10px;
+    }
 `;
 
 export interface DocumentPageProps extends SharedPageProps {
@@ -65,21 +64,14 @@ export default function DocumentPage({ page }: DocumentPageProps) {
     return (
         <StyledGrid>
             <SEO title={page.name}/>
-            <Column style={{ "--gap": "32px" }}>
-                <Markdown source={page.source} />
-                <ArrowButtonBox>
-                    <ArrowLink href="/wiki">
-                        <Icon icon={faArrowLeft} color="text-disabled"></Icon>
-                        <Text link color="text-disabled">Previous page</Text>
-                    </ArrowLink>
-                    <Text>Middle text</Text>
-                    <ArrowLink href="/wiki">
-                        <Text link color="text-disabled">Next page</Text>
-                        <Icon icon={faArrowRight} color="text-disabled"></Icon>
-                    </ArrowLink>
-                </ArrowButtonBox>
-            </Column>
+            <Markdown source={page.source} />
             <TableOfContents headings={page.headings} />
+            <ArrowButtonBox>
+                <Link href="/wiki">
+                    <Icon icon={faArrowLeft} color="text-disabled"></Icon>
+                    <Text link color="text-disabled">Back to overview</Text>
+                </Link>
+            </ArrowButtonBox>
         </StyledGrid>
     );
 }
