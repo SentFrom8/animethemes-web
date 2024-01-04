@@ -3,7 +3,7 @@ import createVideoSlug from "utils/createVideoSlug";
 import fetchStaticPaths from "utils/fetchStaticPaths";
 import type { SharedPageProps } from "utils/getSharedPageProps";
 import getSharedPageProps from "utils/getSharedPageProps";
-import type { VideoPageAllQuery, VideoPageQuery, VideoPageQueryVariables } from "generated/graphql";
+import type { ArtistQueryResult, VideoPageAllQuery, VideoPageQuery, VideoPageQueryVariables, /*ThemeSummaryCardThemeFragment,ArtistQueryResult*/ } from "generated/graphql";
 import type { GetStaticPaths, GetStaticProps } from "next";
 import { fetchData } from "lib/server";
 import gql from "graphql-tag";
@@ -17,7 +17,8 @@ import { Column, Row } from "components/box";
 import { VideoSummaryCard } from "components/card/VideoSummaryCard";
 import { Text } from "components/text";
 import { IconTextButton } from "components/button";
-import { useContext, useState } from "react";
+import type { ReactNode } from "react";
+import { useContext, useEffect, useState } from "react";
 import PlayerContext from "context/playerContext";
 import { DeveloperMode } from "utils/settings";
 import { PageRevalidation } from "components/utils/PageRevalidation";
@@ -26,6 +27,7 @@ import { SEO } from "components/seo";
 import extractImages from "utils/extractImages";
 import { VIDEO_URL } from "utils/config";
 import { faChevronDown, faChevronUp } from "@fortawesome/pro-solid-svg-icons";
+import Link from "next/link";
 
 export interface VideoPageProps extends SharedPageProps, RequiredNonNullable<VideoPageQuery> {
     themeIndex: number
@@ -52,12 +54,12 @@ export default function VideoPage({ anime, themeIndex, entryIndex, videoIndex, l
     const [selectedTab, setSelectedTab] = useState<"watch-list" | "info" | "related">(() => {
         return watchList.length > 1 ? "watch-list" : "info";
     });
-    const [showMoreRelatedThemes, setShowMoreRelatedThemes] = useState(false);
+    /*const [showMoreRelatedThemes, setShowMoreRelatedThemes] = useState(false);
 
     const relatedThemes = anime.themes
         .filter((relatedTheme) => relatedTheme.slug !== theme.slug)
         .slice(0, showMoreRelatedThemes ? undefined : 3);
-
+    */
     const usedAlsoAs = video.entries
         .map((entry) => entry.theme)
         .filter((otherTheme) => otherTheme?.anime && otherTheme.anime.slug !== anime.slug);
@@ -83,10 +85,24 @@ export default function VideoPage({ anime, themeIndex, entryIndex, videoIndex, l
         return `Watch ${anime.name} ${theme.slug}${version}: ${songTitle}${artistStr} on AnimeThemes.`;
     })();
 
+    const [vtest, setVtest] = useState<ArtistQueryResult["artist"][]>([]);
+
+    useEffect(() => {
+        //some songs don't have artists, should add a section for each artist and should add artist name as a link
+        theme.song?.performances.map(async (performance) => {
+            const result = await getArtistThemes(performance.artist.slug);
+            if (result) {
+                setVtest(() => ([...vtest, result]));
+            }
+        });
+    }, [theme.song?.performances]);
+    
+
     const videoUrl = `${VIDEO_URL}/${video.basename}`;
 
     const videoHeight = video.resolution ?? 720;
     const videoWidth = Math.floor(videoHeight / 9 * 16);
+
 
     return (
         <>
@@ -172,7 +188,7 @@ export default function VideoPage({ anime, themeIndex, entryIndex, videoIndex, l
             ) : null}
             {selectedTab === "related" ? (
                 <StyledScrollArea>
-                    <Column style={{ "--gap": "16px" }}>
+                    {/*<Column style={{ "--gap": "16px" }}>
                         {!!relatedThemes.length && (
                             <>
                                 <Text variant="h2">Related themes</Text>
@@ -191,12 +207,66 @@ export default function VideoPage({ anime, themeIndex, entryIndex, videoIndex, l
                                 ) : null}
                             </>
                         )}
-                    </Column>
+                    </Column>*/}
+                    <RelatedThemesList themesList={anime.themes} header="related themes" currentThemeSlug={theme.slug}>
+                        <Text variant="h2">related themes</Text>
+                    </RelatedThemesList>
+                    {/*vtest ? <RelatedThemesList themesList={vtest.performances
+                        .flatMap((performance) => performance.song.themes)} header="same artist" currentThemeSlug={theme.slug}/>: null*/
+                        vtest ? vtest.map((artist, id) => (<RelatedThemesList themesList={artist.performances.flatMap((performance) => performance.song.themes)} header={artist.name} currentThemeSlug={theme.slug} key={id}>
+                            <Text variant="h2">
+                                Same artist {theme.song?.performances[id]?.artist.slug ? <Link href={"/artist/"+theme.song?.performances[id].artist.slug}>
+                                    <Text link>({artist.name})</Text>
+                                </Link> : null}
+                            </Text>
+                        </RelatedThemesList>)) : null
+                    }
                 </StyledScrollArea>
             ) : null}
         </>
     );
 }
+
+type ThemesListProps = {
+    themesList: NonNullable<VideoPageProps["anime"]>["themes"],
+    header?: string,
+    currentThemeSlug?: string,
+    children?: ReactNode
+}
+
+const RelatedThemesList = ( props: ThemesListProps ) => {
+    
+    const [moreThemes, setMoreThemes] = useState(false);
+    
+
+    const themes = props.themesList
+        .filter((relatedTheme) => relatedTheme.slug !== props.currentThemeSlug)
+        .slice(0, moreThemes ? undefined : 3);
+    
+
+    return (
+        themes ? <Column style={{ "--gap": "16px" }}>
+            {!!themes.length && (
+                <>
+                    {props.children}
+                    {themes.map((theme) => (
+                        <ThemeSummaryCard key={theme.slug} theme={{ ...theme }}/>
+                    ))}
+                    {props.themesList.length > 4 ? (
+                        <Row style={{ "--justify-content": "center" }}>
+                            <IconTextButton
+                                icon={moreThemes ? faChevronUp : faChevronDown}
+                                variant="silent"
+                                isCircle
+                                onClick={() => setMoreThemes(!moreThemes)}
+                            />
+                        </Row>
+                    ) : null}
+                </>
+            )}
+        </Column> : <div>no works</div>
+    );
+};
 
 VideoPage.fragments = {
     anime: gql`
@@ -272,6 +342,103 @@ VideoPage.fragments = {
             }
         }
     `,
+};
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+type TestApiResult = {
+    artist: { name: string }
+}
+
+
+const getArtistThemes = async (artistSlug: string | undefined) => {
+    if (artistSlug) {
+        const themes = await fetchData<ArtistQueryResult>(gql`
+        ${ThemeSummaryCard.fragments.theme}
+        ${ArtistSummaryCard.fragments.artist}
+        ${VideoPlayer.fragments.theme}
+        ${VideoPlayer.fragments.entry}
+        ${VideoPlayer.fragments.video}
+        ${VideoScript.fragments.video}
+
+        query GetArtistThemes($aSlug: String) {
+            artist(slug: $aSlug) {
+                name
+                images {
+                    link
+                    facet
+                }
+                performances {
+                    song {
+                        themes {
+                            ...VideoPlayerTheme
+                            ...ThemeSummaryCardTheme
+                            id
+                            slug
+                            song {
+                                title
+                                performances {
+                                    artist {
+                                        ...ArtistSummaryCardArtist
+                                    }
+                                    as
+                                }
+                            }
+                            entries {
+                                ...VideoPlayerEntry
+                                episodes
+                                nsfw
+                                spoiler
+                                version
+                                videos {
+                                    ...VideoPlayerVideo
+                                    ...VideoScriptVideo
+                                    id
+                                    basename
+                                    filename
+                                    lyrics
+                                    nc
+                                    overlap
+                                    resolution
+                                    source
+                                    subbed
+                                    uncen
+                                    tags
+                                    entries {
+                                        theme {
+                                            ...ThemeSummaryCardTheme
+                                        }
+                                    }
+                                }
+                            }
+                            anime {
+                                slug
+                                name
+                                images {
+                                    link
+                                    facet
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    `, { aSlug: artistSlug });
+
+        /*const themes = await fetchData<TestApiResult>(gql`
+        query GetArtistThemes($aSlug: String) {
+        artist(slug: $aSlug) {
+            name
+            }
+        }
+        `, { aSlug: artistSlug });*/
+        const artist = themes.data.artist;
+
+        if (artist) {
+            return artist;
+        }
+    }
+    //return "No slug";
 };
 
 const buildTimeCache: Map<string, VideoPageQuery> = new Map();
